@@ -109,7 +109,7 @@ select
 from most_wins
 
 
--- 6
+-- #6
 
 with manager_awards as (
 	select 
@@ -141,4 +141,46 @@ select playerid, namefirst, namelast, teams, years
 from manager_league_counts
 where lg_count = 2
 	
+-- #7
+
+with pitcher_stats as (
+	select 
+		pi.yearid,
+		p.playerid, 
+		p.namefirst,
+		p.namelast,
+		pi.so,
+		pi.gs,
+		pi.teamid,
+-- 		count(distinct pi.teamid) as teams,
+		sa.salary
+	from people p
+	inner join pitching pi using(playerid)
+-- 	inner join salaries sa using(playerid)
+	inner join salaries sa on pi.playerid = sa.playerid and pi.yearid = sa.yearid
+	where pi.yearid = 2016 and pi.gs > 10
+-- 	group by pi.yearid, p.playerid, pi.so, pi.gs, pi.teamid, sa.salary
+-- 	order by teams desc
+),
+total_salaries as (
+	select
+	playerid,
+	namefirst,
+	namelast,
+	ARRAY_AGG(distinct teamid) as teams,
+	sum(distinct(salary)::NUMERIC::Money) as total_salary
+	from pitcher_stats
+	group by playerid, namefirst, namelast
+)
+select playerid, namefirst, namelast, total_salary, teams
+from total_salaries
+order by total_salary desc
+
+select playerid, p.namefirst, p.namelast, count(distinct pi.teamid)
+from people p
+inner join pitching pi using(playerid)
+where pi.yearid = 2016
+group by playerid, p.namefirst, p.namelast
+order by count desc
+
 

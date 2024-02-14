@@ -93,20 +93,21 @@ from most_wins;
 -- 	where wswin = 'Y' and yearid >= 1970 and yearid <= 2016
 -- ),
 with most_wins as (
-	select yearid, teamid, w, l, wswin
+	select 
+		yearid, 
+		teamid, 
+		w, 
+		l, 
+		wswin,
+		RANK() OVER (PARTITION BY yearid ORDER BY w DESC) AS win_rank
 	from teams
 	where yearid >= 1970 and yearid <= 2016
-	and w = (
-		select max(w)
-		from teams t2
-		where t2.yearid = teams.yearid
-	)
-	order by yearid
 )
 select 
 	round((COUNT(DISTINCT CASE WHEN wswin = 'Y' THEN yearid END) * 100.0 / COUNT(DISTINCT yearid)), 2) 
 	AS perc_most_wins_and_wswin
 from most_wins
+where win_rank = 1;
 
 
 -- #6
@@ -176,11 +177,42 @@ select playerid, namefirst, namelast, total_salary, teams
 from total_salaries
 order by total_salary desc
 
-select playerid, p.namefirst, p.namelast, count(distinct pi.teamid)
-from people p
-inner join pitching pi using(playerid)
-where pi.yearid = 2016
-group by playerid, p.namefirst, p.namelast
-order by count desc
+-- select playerid, p.namefirst, p.namelast, count(distinct pi.teamid)
+-- from people p
+-- inner join pitching pi using(playerid)
+-- where pi.yearid = 2016
+-- group by playerid, p.namefirst, p.namelast
+-- order by count desc
 
+-- #8
+
+with hitters as (
+	select 
+		p.playerid, 
+		p.namefirst,
+		p.namelast,
+		ba.h
+	from people p
+	inner join batting ba using(playerid)
+),
+total_hits as (
+	select
+		playerid,
+		namefirst,
+		namelast,
+		sum(h) as career_hits
+	from hitters
+	group by playerid, namefirst, namelast
+	order by career_hits desc
+)
+select playerid, namefirst, namelast, career_hits,
+	case 
+		when hoa.inducted = 'N' then null
+		else hoa.yearid
+	end as year_inducted
+from total_hits th
+inner join halloffame hoa using(playerid)
+where career_hits >= 3000
+group by playerid, namefirst, namelast, career_hits, inducted, hoa.yearid
+order by career_hits desc
 
